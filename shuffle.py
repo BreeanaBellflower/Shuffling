@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Apr  6 23:14:16 2019
+Created on Sat Apr 6 23:14:16 2019
 
 @author: Breeana
 
@@ -24,7 +24,7 @@ rarely have distinct frequencies when compared with other cards. For example,
 one card may have a frequency of 20 shuffles per cycle before returning to its
 original state, while another may have another frequency, but it is rarely the
 only card to have a frequency of 20. To make this point clear, this script
-prints the frequencies of all relevant cards.
+prints the unique frequencies of all relevant cards.
 
 To reduce the amount of resources used, I spent some time determining whether
 I could reduce the problem size in any way. This is what led me to the
@@ -51,15 +51,33 @@ cut moves to position 0, the one above it moves to position 2, and so on.
 
 With the movement of cards established, I can keep track of how many shuffles
 it takes for a cards to return to its original position - its frequency. With
-a reduced sample size, I can track the frequencies of only the first cut
-portion of the deck. When the list of frequencies is complete - meaning every
-number has been tracked at least one cycle through the deck - I can use all the
-unique frequencies of those cards and found their least common multiple; the
-number of shuffles it would take for all those cards to return to the same 
-state they were when the shuffling begin. With the understanding that that
-portion of the deck can only be in its original state when the entire deck is
-also in its original state, I determined that the number of shuffles required
-is equal to that least common multiple.
+a reduced sample size, I can track the frequencies of only the top portion
+of the deck where the cut was made. When the list of frequencies is complete -
+which is to say that each card number in the cut portion has been tracked at
+least one cycle through the deck - I can use all the unique frequencies of those
+cards and find their least common multiple; it turns out that when you find the
+LCM you get the number of shuffles it would take for all those cards to return to
+the same state they were when the shuffling begin. With the understanding that
+the top portion of the deck can only be in its original state when the entire
+deck is also in its original state, I determined that the number of shuffles
+required to fully shuffle the deck to its original state is equal to that least
+common multiple.
+
+In the special case when a cut is made that is larger than half the size of the
+deck, there exists a portion of the deck that does not move at all. The problem
+size can be reduced in this case by eliminating the cards that do not move and
+altering the given cut size and deck size to reflect only the moving portions
+of the deck. For example, when you have a deck of 6 cards and shuffle a cut of
+4 cards, only the bottom two cards of the cut can be shuffled. Therefore the
+new cut size would be 2 cards, and the new deck size would 4 cards.
+
+This exact formula for determining the new cut size is equal to the original
+deck size minus the original cut size - in other words it is the number of
+cards not included in the original cut. This is intuitively true because, on
+analysis, if the cut size is larger than half the deck then the number of cards
+that can be shuffled in the cut is determined by the bottom portion. The total
+deck size is found by doubling the cut size. Again this is intuitive since we
+have the bottom cards as well as a true cut of equal size.
 
 All of these things together make for an algorithm which runs much more quickly
 than if I were to shuffle the entire deck in a simulation. The number of
@@ -70,78 +88,91 @@ required for such a deck could be in the billions.
 
 from math import gcd
 
+print("\n\n\n\n")
+
+print("\n----------------------------------------\n")
+print("Welcome to the shuffle counter.")
+print("\n----------------------------------------\n")
+
+print("\n\n")
+
 print("Please select a deck size: ")
 while(True):
-    try:
-        size = int(input())
-    except:
-        print("\nPlease enter integer values for a deck size: ")
-        continue
-    if(size < 2):
-        print("\nPlease enter a value greater than 1 for a deck size: ")
-        continue
-    break
+	try:
+		size = int(input())
+	except ValueError:
+		print("\nPlease enter integer values for a deck size: ")
+		continue
+	except:
+		exit()
+	if(size < 2):
+		print("\nPlease enter a value greater than 1 for a deck size: ")
+		continue
+	break
 
 print("\n--------\n")
 
-print("Please select a cut size less than half the deck size to shuffle with: ")
+print("Please select a cut size less than the deck size to shuffle with: ")
 while(True):
-    try:
-        cut = int(input())
-    except:
-        print("\nPlease enter integer values for a cut size: ")
-        continue
-    if(cut < 1):
-        print("\nPlease enter a value greater than 0 for a cut size: ")
-        continue
-    if(cut > size/2):
-        print("\nPlease enter a value less than half the deck size for the cut: ")
-        continue
-    break
+	try:
+		cut = int(input())
+	except ValueError:
+		print("\nPlease enter integer values for a cut size: ")
+		continue
+	except:
+		exit()
+	if(cut < 1):
+		print("\nPlease enter a value greater than 0 for a cut size: ")
+		continue
+	if(cut >= size):
+		print("\nPlease enter a value less than the size of the deck for a cut size: ")
+		continue
+	if(cut > size/2):
+		cut = size - cut
+		sizeDiff = size - cut*2
+		size = cut*2
+	break
 
 print("\n--------\n")
 
-originalcut = [i for i in range(size-cut, size)]
-originalcut2 = [i for i in range(size-cut, size)]
-lowerlimit = originalcut[0]
-upperlimit = originalcut[-1]
+lowerLimit = size-cut
+upperLimit = size
+currentPosition = size-cut
+previousFrequency = 0
+frequencies = set([]);
 
-frequency = [0 for i in range(size-cut,size)]
+	
+#Move each card in the original cut through the deck according to its zone
+for i in range(lowerLimit,upperLimit):
+	cardFrequency = 0
+	currentPosition = i
+	if((i - lowerLimit)%100 == 0):
+		print("Finished with " + str(i-lowerLimit) + " of " + str(cut) + " cards\r")
+	while(True):
+		if(currentPosition >= lowerLimit and currentPosition <= upperLimit):
+			currentPosition = 2*(currentPosition-lowerLimit)
+		elif(currentPosition < lowerLimit and currentPosition >= cut):
+			currentPosition += cut
+		elif(currentPosition < cut):
+			currentPosition = currentPosition*2+1
+		cardFrequency += 1
+		#If the card has returned to its original position, add the frequency
+		#retain only if unique
+		if(currentPosition == i):
+			frequencies.add(cardFrequency)
+			break
 
-shuffletimes = 0
+print("Finished with " + str(cut) + " of " + str(cut) + " cards\r")
 
-while(True):
-    #Move each card in the original cut through the deck according to its zone
-    for i in originalcut:
-        currentindex = originalcut.index(i)
-        if(i >= lowerlimit and i <= upperlimit):
-            originalcut[currentindex] = 2*(i-(size-cut))
-        elif(i < lowerlimit and i >= cut):
-            originalcut[currentindex] += cut
-        elif(i < cut):
-            originalcut[currentindex] = i*2+1
+frequencies = list(frequencies)
+LCM = frequencies[0]
 
+#Get the least common multiplier for all in the frequency list
+for i in frequencies[1:]:
+	LCM = int(LCM*i/gcd(LCM,i))
 
-    shuffletimes += 1
-    
-    #If a card is back to its original spot, the number of shuffles is its frequency
-    for i in range(cut):
-        if(originalcut[i] == originalcut2[i]):
-            if(frequency[i] == 0):
-                frequency[i] = shuffletimes
-    
-    #If there are no more 0's in the frequency list, it means all frequencies are found
-    try:
-        frequency.index(0)
-    except:
-        lcm = frequency[0]
-        #Get the least common multiplier for all in the frequency list
-        for i in frequency[1:]:
-            lcm = int(lcm*i/gcd(lcm,i))
-        
-        print("Loops required to come to conclusion: " + str(shuffletimes))
-        print("Shuffles required to return to original state: " + str(lcm))
-        print("\n")
-        print("Frequency list: ")
-        print(frequency)
-        break
+print("\n\nShuffles required to return to original state: " + str(LCM))
+print("\n")
+
+print("Unique Frequency list: ")
+print(frequencies)
